@@ -2,6 +2,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <iostream>
@@ -21,8 +22,9 @@ void* handleclient(void* arg) {
         if(strcmp(line, "List") == 0) {
           std::cout << "Got List\n";
           char line2[5000];
+          char number[33];
           for (int i = 0; i < clientList.size(); i++) {
-            strcpy(line2, itoa(clientList[i]));
+            strcpy(line2, itoa(clientList[i], number, 10));
             strcat(line2, " ");
           }
           send(clientsocket, line2, strlen(line2)+1, 0);
