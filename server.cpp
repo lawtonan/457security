@@ -16,8 +16,9 @@ bool running = true;
 std::map<int, int> clientList;
 
 void* handleclient(void* arg) {
+	int clientsocket = *(int*)arg;
     while (running) {
-        int clientsocket = *(int*)arg;
+        
         char line[5000];
         //char line2[5000];
         recv(clientsocket, line, 5000, 0);
