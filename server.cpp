@@ -21,8 +21,9 @@ void* handleclient(void* arg) {
         if(strcmp(line, "List") == 0) {
           std::cout << "Got List\n";
           char line2[5000];
-          for (int i = 0; i < clientList.size; i++) {
-            line2 = line2 + clientList[i] + " ";
+          for (int i = 0; i < clientList.size(); i++) {
+            strcpy(line2, clientList[i]);
+            strcat(line2, " ");
           }
           send(clientsocket, line2, strlen(line2)+1, 0);
         }
