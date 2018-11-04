@@ -9,6 +9,7 @@
 #include <pthread.h>
 
 bool running = true;
+std::map<int, int> clientList;
 
 void* handleclient(void* arg) {
     while (running) {
@@ -16,6 +17,14 @@ void* handleclient(void* arg) {
         char line[5000];
         //char line2[5000];
         recv(clientsocket, line, 5000, 0);
+        if(strcmp(line, "List") == 0) {
+          std::cout << "Got List\n";
+          char line2[5000];
+          for (int i = 0; i < clientList.size; i++) {
+            line2 = line2 + clientList[i] + " ";
+          }
+          send(clientsocket, line2, strlen(line2)+1, 0);
+        }
         if(running) {
             std::cout << "Got from client: " << line << "\n";
         }
@@ -29,17 +38,6 @@ void* handleclient(void* arg) {
     return 0;
 }
 
-void* makeClients(void* arg) {
-    while (running) {
-      struct sockaddr_in clientaddr = *(struct sockaddr_in*)arg;
-      int len = sizeof(clientaddr);
-      int clientsocket;
-      clientsocket = accept(sockfd, (struct sockaddr*)&clientaddr, (socklen_t*)&len);
-      pthread_t child;
-      pthread_create(&child,NULL,handleclient,&clientsocket);
-      pthread_detach(child);
-    }
-}
 
 int main(int arc, char** argv) {
     int sockfd = socket(AF_INET,SOCK_STREAM,0);
@@ -67,30 +65,37 @@ int main(int arc, char** argv) {
     listen(sockfd,10);
 
     int first = 1;
+    int num_clients = 0;
 
     while(running){
+        int len = sizeof(clientaddr);
+        //std::cout << "Got here\n";
+        int clientsocket = accept(sockfd, (struct sockaddr*)&clientaddr, (socklen_t*)&len);
+        clientList[num_clients] = clientsocket;
+        num_clients++;
+
         pthread_t child;
-        pthread_create(&child,NULL,makeClients,&clientaddr);
+        pthread_create(&child,NULL,handleclient,&clientsocket);
         pthread_detach(child);
 
-        char line[5000];
-        std::cout << "Enter a Message: ";
-        if (first == 1) {
-            std::cin.ignore();
-            first--;
-        }
-        std::cin.getline(line,5000);
-
-        if(!running) {
-            break;
-        }
-
-        send(clientsocket, line, strlen(line)+1, 0);
-
-        if(strcmp(line, "Quit") == 0) {
-            std::cout << "Exiting Server\n";
-            return 1;
-        }
+        // char line[5000];
+        // std::cout << "Enter a Message: ";
+        // if (first == 1) {
+        //     std::cin.ignore();
+        //     first--;
+        // }
+        // std::cin.getline(line,5000);
+        //
+        // if(!running) {
+        //     break;
+        // }
+        //
+        // send(clientsocket, line, strlen(line)+1, 0);
+        //
+        // if(strcmp(line, "Quit") == 0) {
+        //     std::cout << "Exiting Server\n";
+        //     return 1;
+        // }
 
     }
 
