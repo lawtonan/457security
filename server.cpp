@@ -29,44 +29,50 @@ void* handleclient(void* arg) {
     return 0;
 }
 
+void* makeClients(void* arg) {
+    while (running) {
+      struct sockaddr_in clientaddr = *(struct sockaddr_in*)arg;
+      int len = sizeof(clientaddr);
+      int clientsocket;
+      clientsocket = accept(sockfd, (struct sockaddr*)&clientaddr, (socklen_t*)&len);
+      pthread_t child;
+      pthread_create(&child,NULL,handleclient,&clientsocket);
+      pthread_detach(child);
+    }
+}
+
 int main(int arc, char** argv) {
     int sockfd = socket(AF_INET,SOCK_STREAM,0);
-    
+
     if (sockfd<0) {
         std::cout << "Problem creating socket\n";
         return 1;
     }
-    
+
     int port;
     std::cout << "Input a port number: ";
     std::cin >> port;
-    
+
     struct sockaddr_in serveraddr, clientaddr;
     serveraddr.sin_family=AF_INET;
     serveraddr.sin_port=htons(port);
     serveraddr.sin_addr.s_addr=INADDR_ANY;
-    
+
     int b = bind(sockfd, (struct sockaddr*)&serveraddr, sizeof(serveraddr));
-    
+
     if(b<0) {
         std::cout << "Bind error\n";
         return 3;
     }
     listen(sockfd,10);
-    
+
     int first = 1;
-    
+
     while(running){
-        int len = sizeof(clientaddr);
-        std::cout << "Got here\n";
-        int clientsocket;
-        if (first == 1) {
-            clientsocket = accept(sockfd, (struct sockaddr*)&clientaddr, (socklen_t*)&len);
-        }
         pthread_t child;
-        pthread_create(&child,NULL,handleclient,&clientsocket);
+        pthread_create(&child,NULL,makeClients,&clientaddr);
         pthread_detach(child);
-        
+
         char line[5000];
         std::cout << "Enter a Message: ";
         if (first == 1) {
@@ -74,20 +80,20 @@ int main(int arc, char** argv) {
             first--;
         }
         std::cin.getline(line,5000);
-        
+
         if(!running) {
             break;
         }
-        
+
         send(clientsocket, line, strlen(line)+1, 0);
-        
+
         if(strcmp(line, "Quit") == 0) {
             std::cout << "Exiting Server\n";
             return 1;
         }
-        
+
     }
-    
-    
+
+
     return 0;
 }
