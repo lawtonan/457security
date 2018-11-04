@@ -9,6 +9,8 @@
 #include <map>
 #include <fstream>
 #include <pthread.h>
+#include <cstdio>
+#include <bits/stdc++.h>
 
 bool running = true;
 std::map<int, int> clientList;
@@ -22,11 +24,11 @@ void* handleclient(void* arg) {
         if(strcmp(line, "List") == 0) {
           std::cout << "Got List\n";
           char line2[5000];
-          char number[33];
+          std::string s;
           for (int i = 0; i < clientList.size(); i++) {
-            strcpy(line2, itoa(clientList[i], number, 10));
-            strcat(line2, " ");
+            s = s + std::to_string(clientList[i]) + " ";
           }
+          strcpy(line2, s.c_str());
           send(clientsocket, line2, strlen(line2)+1, 0);
         }
         if(running) {
