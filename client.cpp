@@ -17,7 +17,7 @@ void* handleserver(void* arg) {
         //char line2[5000];
         recv(serversocket, line, 5000, 0);
         if (running) {
-            std::cout << "Got from server: " << line << "\n";
+            std::cout << "\nGot from server: " << line << "\n";
         }
         //send(clientsocket, line, strlen(line)+1, 0);
         if(strcmp(line, "Quit") == 0) {
@@ -56,16 +56,23 @@ int main(int arc, char** argv) {
         return 2;
     }
 
-    std::cout << "Conected to server.\n";
+    std::cout << "Conected to server.\n\n";
 
     int first = 1;
+
+    pthread_t child;
+    pthread_create(&child,NULL,handleserver,&sockfd);
+    pthread_detach(child);
+
+	std::cout << "Commands\n";
+    std::cout << "\"Clientname\" \"Message\"\tclientname is represented by a number\n";
+	std::cout << "List\tLists out the client names on the server\n";
+	std::cout << "K\"Clientname\"\tclientname being represented by a number\n";
+
     while (running) {
         char line[5000];
 
-        pthread_t child;
-        pthread_create(&child,NULL,handleserver,&sockfd);
-        pthread_detach(child);
-
+        
         std::cout << "Enter a Message: ";
 
         if (first == 1) {

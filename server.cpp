@@ -14,19 +14,21 @@
 
 bool running = true;
 std::map<int, int> clientList;
+std::map<int,int>::iterator it;
 
 void* handleclient(void* arg) {
 	int clientsocket = *(int*)arg;
     while (running) {
-        char line[5000];
+        char line[5000] = "";
         //char line2[5000];
         recv(clientsocket, line, 5000, 0);
 
         if(strcmp(line, "List") == 0) {
           std::cout << "Got List\n";
-          char line2[5000];
-          std::string s;
-          for (std::map<int,int>::iterator it = clientList.begin(); it != clientList.end(); ++it) {
+          char line2[5000] = "";
+          std::string s = "";
+
+          for (it = clientList.begin(); it != clientList.end(); ++it) {
             s = s + std::to_string(it->first) + " Socket: " + std::to_string(it->second);
           }
           strcpy(line2, s.c_str());
@@ -49,10 +51,13 @@ void* handleclient(void* arg) {
 					}
 				}
 				else if (strcmp(line, "Quit") == 0) {
-					for (int i = 0; i < clientList.size(); i++) {
+					std::cout << "Pre clientList Size: " << clientList.size();
+					for (int i = clientList.begin()->first; i < clientList.size(); i++) {
 						if (clientList[i] == clientsocket) {
-							clientList.erase(i);
+							it = clientList.find(i);
+							clientList.erase(it);
 						}
+						std::cout << "clientList Size: " << clientList.size();
 					}
 					pthread_exit(0);
 				}
@@ -107,12 +112,16 @@ int main(int arc, char** argv) {
         int len = sizeof(clientaddr);
         //std::cout << "Got here\n";
         int clientsocket = accept(sockfd, (struct sockaddr*)&clientaddr, (socklen_t*)&len);
-        clientList[num_clients] = clientsocket;
-        num_clients++;
+        
 
         pthread_t child;
         pthread_create(&child,NULL,handleclient,&clientsocket);
         pthread_detach(child);
+	
+	std::cout << "PThread Created\n";
+
+	clientList[num_clients] = clientsocket;
+        num_clients++;
 
         // char line[5000];
         // std::cout << "Enter a Message: ";
