@@ -14,12 +14,12 @@ void* handleserver(void* arg) {
   int serversocket = *(int*)arg;
     while (running) {
         char line[5000] = "";
-        //char line2[5000];
+
         recv(serversocket, line, 5000, 0);
         if (running) {
             std::cout << "\nGot from server: " << line << "\n";
         }
-        //send(clientsocket, line, strlen(line)+1, 0);
+
         if(strcmp(line, "Quit") == 0) {
             std::cout << "Exiting Client\n";
             running = false;
@@ -65,9 +65,10 @@ int main(int arc, char** argv) {
     pthread_detach(child);
 
 	std::cout << "Commands\n";
-    std::cout << "\"Clientname\" \"Message\"\tclientname is represented by a number\n";
-	std::cout << "List\tLists out the client names on the server\n";
-	std::cout << "K\"Clientname\"\tclientname being represented by a number\n";
+	std::cout << "Send a Message to another client: \"Clientname\" \"Message\"\n";
+	std::cout << "List clients connected: List\n";
+	std::cout << "Kick a different client off: K\"Clientname\"\n";
+	std::cout << "Disconnect Client: Quit\n";
 
     while (running) {
         char line[5000];
