@@ -18,6 +18,15 @@
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
 
+void handleErrors(void);
+//int rsa_encrypt(unsigned char* in, size_t inlen, EVP_PKEY *key, unsigned char* out);
+int rsa_decrypt(unsigned char* in, size_t inlen, EVP_PKEY *key, unsigned char* out);
+int encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *key,
+	unsigned char *iv, unsigned char *ciphertext);
+int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
+	    unsigned char *iv, unsigned char *plaintext);
+
+
 std::map<int, int> clientList;
 
 void* handleclient(void* arg) {
@@ -25,8 +34,8 @@ void* handleclient(void* arg) {
 	int clientsocket = *(int*)arg;
 	std::map<int,int>::iterator it;
 	
-	unsigned char *pubfilename = "RSApub.pem";
-  	unsigned char *privfilename = "RSApriv.pem";
+	char pubfilename[11] = "RSApub.pem";
+  	char privfilename[12] = "RSApriv.pem";
   	unsigned char key[32];
   	unsigned char iv[16];
 	unsigned char encrypted_key[256];
@@ -38,26 +47,32 @@ void* handleclient(void* arg) {
   	privkey = PEM_read_PrivateKey(privf,NULL,NULL,NULL);
 	
 	unsigned char decrypted_key[32];
-  	int decryptedkey_len = rsa_decrypt(encrypted_key, encryptedkey_len, privkey, decrypted_key); 
+  	int decryptedkey_len = rsa_decrypt(encrypted_key, 256, privkey, decrypted_key); 
   
   	//decryptedtext_len = decrypt(ciphertext, ciphertext_len, decrypted_key, iv,
 	//		      	decryptedtext);
   	//decryptedtext[decryptedtext_len] = '\0';
-  	char line[5000] = "";
+  	
   	unsigned char decryptedtext[5000];
-  	char message[5000];
+  	int decryptedtext_len;
+  	
+  	std::cout << "GOTO WHILE\n";
+  	int rsize;
+  	
+  	RAND_bytes(key,32);
+  	RAND_bytes(iv,16);
   	
     while (1) {
-        line = "";
-        recv(clientsocket, line, 5000, 0);
+        unsigned char line[5000] = "";
+        rsize = recv(clientsocket, line, 5000, 0);
         
-        decryptedtext_len = decrypt(line, strlen(line)+1 , decrypted_key, iv,
+        decryptedtext_len = decrypt(line, (rsize) , decrypted_key, iv,
 			      decryptedtext);
   		decryptedtext[decryptedtext_len] = '\0';
         
 		std::cout << "Got from client: " << decryptedtext << "\n";
 
-        if(strcmp(decryptedtext, "List") == 0) {
+        if(strcmp((char*)decryptedtext, "List") == 0) {
           
           std::string s = "";
 
@@ -69,11 +84,11 @@ void* handleclient(void* arg) {
         else if (decryptedtext[0] == '*') {
 		  for (it = clientList.begin(); it != clientList.end(); ++it) {
           	if(it->second != clientsocket)
-				send(it->second,decryptedtext + 2, strlen(decryptedtext)-1, 0);
+				send(it->second,decryptedtext + 2, decryptedtext_len-1, 0);
           }
         }
 		else if (decryptedtext[0] == 'K') {
-			message = "Enter the password: ";
+			char message[5000] = "Enter the password: ";
 			send(clientsocket, message, strlen(message)+1, 0);
 			recv(clientsocket, message, 5000, 0);
 			if (strcmp(message, "123456") == 0) {
@@ -81,7 +96,7 @@ void* handleclient(void* arg) {
 				send(clientList[kill], "Quit", 4, 0);
 			}
 		}
-		else if (strcmp(decryptedtext, "Quit") == 0) {
+		else if (strcmp((char*)decryptedtext, "Quit") == 0) {
 			for (it = clientList.begin(); it != clientList.end(); ++it) {
 				if(it->second == clientsocket){
 					clientList.erase(it);
@@ -94,7 +109,7 @@ void* handleclient(void* arg) {
         else {
 			int sendto = (int)decryptedtext[0] - 48;
           	if (clientList.count(sendto)) {
-           		send(clientList[sendto],decryptedtext + 2, strlen(decryptedtext)-1, 0);
+           		send(clientList[sendto],decryptedtext + 2, decryptedtext_len-1, 0);
           	}
           	else
           	{

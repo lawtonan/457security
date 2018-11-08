@@ -15,6 +15,7 @@
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>
 
+
 bool running = true;
 
 void handleErrors(void);
@@ -118,7 +119,7 @@ int main(int arc, char** argv) {
 		
 
 
-        char line[5000];
+        unsigned char line[5000];
 
         
         std::cout << "Enter a Message: ";
@@ -127,14 +128,15 @@ int main(int arc, char** argv) {
             std::cin.ignore();
             first--;
         }
-        std::cin.getline(line,5000);
-		
-		ciphertext_len = encrypt ((unsigned char*) line, strlen ((char *)line), key, iv,
+        std::cin.getline((char*)line,5000);
+		//std::cout << "line is " << line << "\n";
+		ciphertext_len = encrypt (line, strlen ((char *)line), key, iv,
                             ciphertext);
 
         send(sockfd, ciphertext, ciphertext_len, 0);
-
-        if(strcmp(line, "Quit") == 0) {
+		//std::cout << "cipher text is " << ciphertext << " cipher text size is " << ciphertext_len  << "----" << strlen ((char *)line) << "\n";
+		//exit(1);
+        if(strcmp((char*)line, "Quit") == 0) {
             std::cout << "Exiting Client\n";
             return 1;
         }
