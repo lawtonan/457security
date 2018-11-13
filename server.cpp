@@ -28,6 +28,7 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
 
 
 std::map<int, int> clientList;
+std::map<int, int> clientKeyList;
 
 void* handleclient(void* arg) {
 	
@@ -39,16 +40,17 @@ void* handleclient(void* arg) {
   	unsigned char key[32];
   	unsigned char iv[16];
 	unsigned char encrypted_key[256];
-	recv(clientsocket, encrypted_key, 256, 0);
-	
+	int testr; 
+	testr = recv(clientsocket, encrypted_key, 256, 0);
+	std::cout << "Encrypted Key: " << encrypted_key << "\t" << testr << "\n";
 	EVP_PKEY *privkey;
 	
 	FILE* privf = fopen(privfilename,"rb");
   	privkey = PEM_read_PrivateKey(privf,NULL,NULL,NULL);
-	fclose(privf);
+	//fclose(privf);
 	unsigned char decrypted_key[32];
-  	int decryptedkey_len = rsa_decrypt(encrypted_key, 256, privkey, decrypted_key); 
-  	std::cout << "Decrypted Key: " << decrypted_key << "\n";
+  	int decryptedkey_len = rsa_decrypt(encrypted_key, testr, privkey, decrypted_key); 
+  	std::cout << "Decrypted Key: " << decrypted_key << "\t" << decryptedkey_len << "\n";
   	//decryptedtext_len = decrypt(ciphertext, ciphertext_len, decrypted_key, iv,
 	//		      	decryptedtext);
   	//decryptedtext[decryptedtext_len] = '\0';
@@ -66,11 +68,14 @@ void* handleclient(void* arg) {
         unsigned char line[5000] = "";
 	recv(clientsocket, iv, 64, 0);
        
-	//std::cout << "IV: " << iv << "\t" << sizeof(iv) << "\n";
+	std::cout << "IV: " << iv << "\t" << sizeof(iv) << "\n";
 	rsize = recv(clientsocket, line, 5000, 0);
 
 	std::cout << "message recieved: " << line << "\t" << rsize << "\n";
-        std::cout << "GOT TO DECRYPT\n";
+        std::cout << "\n\nGOT TO DECRYPT\n";
+
+
+
         decryptedtext_len = decrypt(line, rsize , decrypted_key, iv,
 			      decryptedtext);
 	std::cout << "GOT PAST DECRYPT\n";
