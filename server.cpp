@@ -55,7 +55,7 @@ void* handleclient(void* arg) {
 	//		      	decryptedtext);
   	//decryptedtext[decryptedtext_len] = '\0';
   	
-  	unsigned char decryptedtext[5000];
+  	
   	int decryptedtext_len;
   	
   	//std::cout << "GOTO WHILE\n";
@@ -74,12 +74,12 @@ void* handleclient(void* arg) {
     while (1) {
 	RAND_bytes(iv2,16);
         unsigned char line[5000] = "";
-	
+	unsigned char decryptedtext[5000] = "";
 	recv(clientsocket, iv, 64, 0);
        
 	//std::cout << "IV: " << iv << "\t" << sizeof(iv) << "\n";
 	rsize = recv(clientsocket, line, 5000, 0);
-
+	usleep(250);
 	//std::cout << "message recieved: " << line << "\t" << rsize << "\n";
         //std::cout << "\n\nGOT TO DECRYPT\n";
 
@@ -100,16 +100,16 @@ void* handleclient(void* arg) {
             s = s + std::to_string(it->first) + " ";
           }
 	   for (it = clientList.begin(); it != clientList.end(); ++it) {
-		std::cout << "GOT HERE\n";
+		//std::cout << "GOT HERE\n";
 		char cstr[s.size()+1];
 		strcpy(cstr, s.c_str());
 		cstr[s.size()] = '\0';
           	if(it->second.first == clientsocket){
-			std::cout << "GOT HERE 1\n";
+			//std::cout << "GOT HERE 1\n";
 			send(it->second.first, iv2 , 64, 0);
-			std::cout << "GOT HERE 2\n";
+			//std::cout << "GOT HERE 2\n";
 			ciphertext_len = encrypt ((unsigned char*)cstr, strlen((char *)cstr), it->second.second, iv2, ciphertext);
-			std::cout << "GOT HERE 3\n";
+			//std::cout << "GOT HERE 3\n";
 			send(it->second.first,ciphertext, ciphertext_len, 0);
           	}
             }
@@ -118,9 +118,12 @@ void* handleclient(void* arg) {
         }
         else if (decryptedtext[0] == '*') {
 		  for (it = clientList.begin(); it != clientList.end(); ++it) {
-          	if(it->second.first != clientsocket)
-				send(it->second.first,decryptedtext + 2, decryptedtext_len-1, 0);
-          }
+          		if(it->second.first != clientsocket){
+				send(it->second.first, iv2 , 64, 0);
+				ciphertext_len = encrypt ((unsigned char*)decryptedtext + 2, decryptedtext_len-1, it->second.second, iv2, ciphertext);
+				send(it->second.first,ciphertext, ciphertext_len, 0);
+			}          
+		}
         }
 		else if (decryptedtext[0] == 'K') {
 			char message[5000] = "Enter the password: ";

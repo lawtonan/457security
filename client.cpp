@@ -43,6 +43,7 @@ void* handleserver(void* arg) {
         unsigned char line[5000] = "";
 	unsigned char decryptedtext[5000] = "";
 	recv(serversocket, iv2, 64, 0);
+	std::cout << "RECIEVED IV?\n";
         rsize = recv(serversocket, line, 5000, 0);
 	std::cout << "TRY TO DECRYPT" << line << "\n";
 	decryptedtext_len = decrypt(line, rsize , key, iv2, decryptedtext);
@@ -159,6 +160,7 @@ int main(int arc, char** argv) {
 	//std::cout << "message sent: " << ciphertext << "\t" << ciphertext_len << "\n";
 
         send(sockfd, ciphertext, ciphertext_len, 0);
+	usleep(250);
 		//std::cout << "cipher text is " << ciphertext << " cipher text size is " << ciphertext_len  << "----" << strlen ((char *)line) << "\n";
 		//exit(1);
         if(strcmp((char*)line, "Quit") == 0) {
