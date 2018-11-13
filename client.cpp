@@ -54,9 +54,9 @@ void* handleserver(void* arg) {
 
         if(strcmp((char*)decryptedtext, "Quit") == 0) {
             std::cout << "Exiting Client\n";
-            running = false;
-            send(serversocket, "Quit", 4, 0);
-            pthread_exit(0);
+            //running = false;
+            //send(serversocket, "Quit", 4, 0);
+            //pthread_exit(0);
         }
     }
     return 0;

@@ -126,13 +126,35 @@ void* handleclient(void* arg) {
 		}
         }
 		else if (decryptedtext[0] == 'K') {
-			char message[5000] = "Enter the password: ";
-			send(clientsocket, message, strlen(message)+1, 0);
-			recv(clientsocket, message, 5000, 0);
-			if (strcmp(message, "123456") == 0) {
-				int kill = (int)decryptedtext[1] - 48;
-				send(clientList[kill].first, "Quit", 4, 0);
+		for (it = clientList.begin(); it != clientList.end(); ++it) {
+          		if(it->second.first == clientsocket){
+			char message[21] = "Enter the password: ";
+			char pass[5000] = "";
+			send(it->second.first, iv2 , 64, 0);
+			ciphertext_len = encrypt ((unsigned char*)message, 21, it->second.second, iv2, ciphertext);
+			send(it->second.first,ciphertext, ciphertext_len, 0);
+			recv(clientsocket, iv, 64, 0);
+			rsize = recv(clientsocket, pass, 5000, 0);
+			usleep(250);
+			int kill = (int)decryptedtext[1] - 48;
+			decryptedtext_len = decrypt((unsigned char*)pass, rsize , decrypted_key, iv,
+			      decryptedtext);
+					decryptedtext[decryptedtext_len] = '\0';
+			std::cout << "Got Password: " << decryptedtext << "\n";
+			memcpy(pass,(char*)decryptedtext,decryptedtext_len+1);
+			if (strcmp(pass, "123456") == 0) {
+				
+				
+				
+				char qMessage[5] = "Quit";
+				
+				send(clientList[kill].first, iv2 , 64, 0);
+				ciphertext_len = encrypt ((unsigned char*)qMessage, 5, clientList[kill].second, iv2, ciphertext);
+				send(clientList[kill].first, ciphertext, ciphertext_len, 0);
+				std::cout << "Leaving:\n";
 			}
+			}
+		}
 		}
 		else if (strcmp((char*)decryptedtext, "Quit") == 0) {
 			for (it = clientList.begin(); it != clientList.end(); ++it) {
