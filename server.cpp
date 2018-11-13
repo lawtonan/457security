@@ -169,10 +169,13 @@ void* handleclient(void* arg) {
         else {
 			int sendto = (int)decryptedtext[0] - 48;
           	if (clientList.count(sendto)) {
-           		send(clientList[sendto].first,decryptedtext + 2, decryptedtext_len-1, 0);
+           		send(clientList[sendto].first, iv2 , 64, 0);
+			ciphertext_len = encrypt ((unsigned char*)decryptedtext + 2, decryptedtext_len-1, clientList[sendto].second, iv2, ciphertext);
+			send(clientList[sendto].first,ciphertext, ciphertext_len, 0);
           	}
           	else
           	{
+		std::cout << "Client does not exist\n";
             	//send(clientsocket, "Client does not exist", 22, 0);
           	}
         }          
