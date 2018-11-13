@@ -26,18 +26,31 @@ int encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *key,
 int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
 	    unsigned char *iv, unsigned char *plaintext);
 
+struct params{
+	int sockfd;
+	unsigned char key[32];
+};
+
 void* handleserver(void* arg) {
-
-  	int serversocket = *(int*)arg;
+	unsigned char iv2[16];
+	struct params info = *(struct params*)arg;
+  	int serversocket = info.sockfd;
+	unsigned char key[32];
+	memcpy(key,info.key,32);
+  	int decryptedtext_len;
+	int rsize;
     while (running) {
-        char line[5000] = "";
-
-        recv(serversocket, line, 5000, 0);
+        unsigned char line[5000] = "";
+	unsigned char decryptedtext[5000] = "";
+	recv(serversocket, iv2, 64, 0);
+        rsize = recv(serversocket, line, 5000, 0);
+	std::cout << "TRY TO DECRYPT" << line << "\n";
+	//decryptedtext_len = decrypt(line, rsize , key, iv2, decryptedtext);
         if (running) {
-            //std::cout << "\nGot from server: " << line << "\n";
+            std::cout << "\nGot from server: " << line << "\n";
         }
 
-        if(strcmp(line, "Quit") == 0) {
+        if(strcmp((char*)decryptedtext, "Quit") == 0) {
             std::cout << "Exiting Client\n";
             running = false;
             send(serversocket, "Quit", 4, 0);
@@ -78,9 +91,7 @@ int main(int arc, char** argv) {
 
     int first = 1;
 
-    pthread_t child;
-    pthread_create(&child,NULL,handleserver,&sockfd);
-    pthread_detach(child);
+    
 
 	std::cout << "Commands\n";
 	std::cout << "Send a Message to another client: \"Clientname\" \"Message\"\n";
@@ -92,7 +103,7 @@ int main(int arc, char** argv) {
 	//unsigned char *privfilename = "RSApriv.pem";
 	unsigned char key[32];
 	unsigned char iv[16];
-	int decryptedtext_len, ciphertext_len;
+	int ciphertext_len;
 
 	OpenSSL_add_all_algorithms();
 	EVP_PKEY *pubkey;
@@ -100,9 +111,17 @@ int main(int arc, char** argv) {
 	RAND_bytes(key,32);
   	RAND_bytes(iv,16);
 
+	struct params pass;
+	pass.sockfd=sockfd;
+	memcpy(pass.key,key,32);
+
+	pthread_t child;
+    	pthread_create(&child,NULL,handleserver,&pass);
+    	pthread_detach(child);
+
 	FILE* pubf = fopen(pubfilename,"rb");
 	pubkey = PEM_read_PUBKEY(pubf,NULL,NULL,NULL);
-	//fclose(pubf);
+	fclose(pubf);
 	unsigned char encrypted_key[256];
 	std::cout << "Decrypted Key: " << key << "\t" << sizeof(key) << "\n\n";
 	int encryptedkey_len = rsa_encrypt(key, 32, pubkey, encrypted_key);
@@ -112,11 +131,13 @@ int main(int arc, char** argv) {
 	send(sockfd, encrypted_key, encryptedkey_len, 0);
 	
 	unsigned char ciphertext[5000];
-	unsigned char decryptedtext[5000];
+
+
+
     while (running) {
 
 		
-  		RAND_bytes(iv,16);
+  	RAND_bytes(iv,16);
 	
 	send(sockfd, iv , 64, 0);
 	

@@ -28,18 +28,19 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
 
 
 std::map<int, int> clientList;
-std::map<int, int> clientKeyList;
+std::map<int, unsigned char*> clientKeyList;
 
 void* handleclient(void* arg) {
 	
 	int clientsocket = *(int*)arg;
 	std::map<int,int>::iterator it;
+	std::map<int, unsigned char*>::iterator it2;	
 	
-	char pubfilename[11] = "RSApub.pem";
   	char privfilename[12] = "RSApriv.pem";
-  	unsigned char key[32];
   	unsigned char iv[16];
+	unsigned char iv2[16];
 	unsigned char encrypted_key[256];
+	unsigned char ciphertext[5000];
 	int testr; 
 	testr = recv(clientsocket, encrypted_key, 256, 0);
 	std::cout << "Encrypted Key: " << encrypted_key << "\t" << testr << "\n";
@@ -47,7 +48,7 @@ void* handleclient(void* arg) {
 	
 	FILE* privf = fopen(privfilename,"rb");
   	privkey = PEM_read_PrivateKey(privf,NULL,NULL,NULL);
-	//fclose(privf);
+	fclose(privf);
 	unsigned char decrypted_key[32];
   	int decryptedkey_len = rsa_decrypt(encrypted_key, testr, privkey, decrypted_key); 
   	std::cout << "Decrypted Key: " << decrypted_key << "\t" << decryptedkey_len << "\n";
@@ -56,18 +57,26 @@ void* handleclient(void* arg) {
   	//decryptedtext[decryptedtext_len] = '\0';
   	
   	unsigned char decryptedtext[5000];
-  	int decryptedtext_len;
+  	int decryptedtext_len, ciphertext_len;
   	
   	std::cout << "GOTO WHILE\n";
   	int rsize;
   	
   	//RAND_bytes(key,32);
   	//RAND_bytes(iv,16);
+	for (it = clientList.begin(); it != clientList.end(); ++it) {
+		if(it->second == clientsocket){
+			clientKeyList[it->first] = decrypted_key;
+		}
+	}
+
   	
     while (1) {
         unsigned char line[5000] = "";
 	recv(clientsocket, iv, 64, 0);
-       
+	
+	RAND_bytes(iv2,16);       
+
 	std::cout << "IV: " << iv << "\t" << sizeof(iv) << "\n";
 	rsize = recv(clientsocket, line, 5000, 0);
 
@@ -90,41 +99,85 @@ void* handleclient(void* arg) {
           for (it = clientList.begin(); it != clientList.end(); ++it) {
             s = s + std::to_string(it->first) + " ";
           }
-          send(clientsocket, s.c_str(), strlen(s.c_str())+1, 0);
+	
+	  for (it = clientList.begin(); it != clientList.end(); ++it) {
+		for (it2 = clientKeyList.begin(); it2 != clientKeyList.end(); ++it){
+			if(it->second == clientsocket && it-> first == it2-> first){
+	  			ciphertext_len = encrypt ((unsigned char*)s.c_str(), strlen(s.c_str())+1, it2->second, iv2,ciphertext);	
+			}
+		}	
+	  }
+//------------------------------------------------------------------------------------
+	  send(clientsocket, iv2 , 64, 0);			
+          send(clientsocket, ciphertext, ciphertext_len, 0);
         }
         else if (decryptedtext[0] == '*') {
-		  for (it = clientList.begin(); it != clientList.end(); ++it) {
-          	if(it->second != clientsocket)
-				send(it->second,decryptedtext + 2, decryptedtext_len-1, 0);
-          }
-        }
-		else if (decryptedtext[0] == 'K') {
-			char message[5000] = "Enter the password: ";
-			send(clientsocket, message, strlen(message)+1, 0);
-			recv(clientsocket, message, 5000, 0);
-			if (strcmp(message, "123456") == 0) {
-				int kill = (int)decryptedtext[1] - 48;
-				send(clientList[kill], "Quit", 4, 0);
-			}
-		}
-		else if (strcmp((char*)decryptedtext, "Quit") == 0) {
-			for (it = clientList.begin(); it != clientList.end(); ++it) {
-				if(it->second == clientsocket){
-					clientList.erase(it);
+		for (it = clientList.begin(); it != clientList.end(); ++it) {
+			for (it2 = clientKeyList.begin(); it2 != clientKeyList.end(); ++it){
+          			if(it->second != clientsocket && it-> first == it2-> first){
+					send(it->second, iv2 , 64, 0);
+					ciphertext_len = encrypt (decryptedtext + 2, decryptedtext_len-1, it2->second, iv2,ciphertext);	
+					send(it->second,ciphertext, ciphertext_len, 0);
+				}
+          		}
+       		 }
+	}
+	else if (decryptedtext[0] == 'K') {
+		unsigned char message[5000] = "Enter the password: ";
+		unsigned char recPass[5000] = "";
+		for (it = clientList.begin(); it != clientList.end(); ++it) {
+			for (it2 = clientKeyList.begin(); it2 != clientKeyList.end(); ++it){
+				if(it->second == clientsocket && it-> first == it2-> first){
+					send(it->second, iv2 , 64, 0);					
+					ciphertext_len = encrypt (message, strlen((char *)message), it2->second, iv2,
+                          					ciphertext);
+					send(it->second,ciphertext, ciphertext_len, 0);
+					recv(clientsocket, iv, 64, 0);
+					rsize = recv(it->second, recPass, 5000, 0);
+					decryptedtext_len = decrypt(message, rsize , decrypted_key, iv,
+			      					decryptedtext);
+					if (strcmp((char*)decryptedtext, "123456") == 0) {
+						int kill = (int)decryptedtext[1] - 48;
+						send(it->second, iv2 , 64, 0);
+						ciphertext_len = encrypt ((unsigned char*)"Quit", 4, clientKeyList[kill], iv2, ciphertext);
+						send(clientList[kill], ciphertext, ciphertext_len, 0);
+					}
 				}
 			}
-			EVP_cleanup();
-  			ERR_free_strings();
-			pthread_exit(0);
 		}
+	}
+	else if (strcmp((char*)decryptedtext, "Quit") == 0) {
+		for (it = clientList.begin(); it != clientList.end(); ++it) {
+			for (it2 = clientKeyList.begin(); it2 != clientKeyList.end(); ++it){
+				if(it->second == clientsocket && it-> first == it2-> first){
+					clientList.erase(it);
+					clientKeyList.erase(it2);
+				}
+			}
+		}
+		EVP_cleanup();
+  		ERR_free_strings();
+		pthread_exit(0);
+	}
         else {
 			int sendto = (int)decryptedtext[0] - 48;
           	if (clientList.count(sendto)) {
-           		send(clientList[sendto],decryptedtext + 2, decryptedtext_len-1, 0);
+			send(clientList[sendto], iv2 , 64, 0);
+			ciphertext_len = encrypt (decryptedtext + 2, decryptedtext_len-1, clientKeyList[sendto], iv2,ciphertext);	
+           		send(clientList[sendto],ciphertext, ciphertext_len, 0);
           	}
           	else
           	{
-            	send(clientsocket, "Client does not exist", 22, 0);
+			unsigned char errmessage[22] = "Client does not exist";
+			for (it = clientList.begin(); it != clientList.end(); ++it) {
+				for (it2 = clientKeyList.begin(); it2 != clientKeyList.end(); ++it){
+					if(it->second == clientsocket && it-> first == it2-> first){
+						send(clientList[sendto], iv2 , 64, 0);
+						ciphertext_len = encrypt (errmessage, 22, it2->second, iv2,ciphertext);
+            					send(clientsocket, ciphertext, 22, 0);
+					}
+				}
+			}
           	}
         }          
     }
@@ -157,7 +210,6 @@ int main(int arc, char** argv) {
     }
     listen(sockfd,10);
 
-    int first = 1;
     int num_clients = 0;
 
 	OpenSSL_add_all_algorithms();
