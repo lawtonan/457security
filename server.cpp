@@ -62,16 +62,19 @@ void* handleclient(void* arg) {
   	int rsize;
   	
 	for (it = clientList.begin(); it != clientList.end(); ++it) {
-          	if(it->second.first != clientsocket){
+          	if(it->second.first == clientsocket){
 			it->second.second = decrypted_key;
 		}
 	}
   	//RAND_bytes(key,32);
   	//RAND_bytes(iv,16);
-  	
+  	int ciphertext_len;
+	unsigned char ciphertext[5000];
+
     while (1) {
 	RAND_bytes(iv2,16);
         unsigned char line[5000] = "";
+	
 	recv(clientsocket, iv, 64, 0);
        
 	//std::cout << "IV: " << iv << "\t" << sizeof(iv) << "\n";
@@ -92,11 +95,26 @@ void* handleclient(void* arg) {
         if(strcmp((char*)decryptedtext, "List") == 0) {
           
           std::string s = "";
-
+	  
           for (it = clientList.begin(); it != clientList.end(); ++it) {
             s = s + std::to_string(it->first) + " ";
           }
-          send(clientsocket, s.c_str(), strlen(s.c_str())+1, 0);
+	   for (it = clientList.begin(); it != clientList.end(); ++it) {
+		std::cout << "GOT HERE\n";
+		char cstr[s.size()+1];
+		strcpy(cstr, s.c_str());
+		cstr[s.size()] = '\0';
+          	if(it->second.first == clientsocket){
+			std::cout << "GOT HERE 1\n";
+			send(it->second.first, iv2 , 64, 0);
+			std::cout << "GOT HERE 2\n";
+			ciphertext_len = encrypt ((unsigned char*)cstr, strlen((char *)cstr), it->second.second, iv2, ciphertext);
+			std::cout << "GOT HERE 3\n";
+			send(it->second.first,ciphertext, ciphertext_len, 0);
+          	}
+            }
+	
+          //send(clientsocket, s.c_str(), strlen(s.c_str())+1, 0);
         }
         else if (decryptedtext[0] == '*') {
 		  for (it = clientList.begin(); it != clientList.end(); ++it) {
@@ -130,7 +148,7 @@ void* handleclient(void* arg) {
           	}
           	else
           	{
-            	send(clientsocket, "Client does not exist", 22, 0);
+            	//send(clientsocket, "Client does not exist", 22, 0);
           	}
         }          
     }

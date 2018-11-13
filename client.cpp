@@ -26,18 +26,32 @@ int encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *key,
 int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
 	    unsigned char *iv, unsigned char *plaintext);
 
+struct params{
+	int sockfd;
+	unsigned char key[32];
+};
+
 void* handleserver(void* arg) {
-
-  	int serversocket = *(int*)arg;
+	unsigned char iv2[16];
+	struct params info = *(struct params*)arg;
+  	int serversocket = info.sockfd;
+	unsigned char key[32];
+	memcpy(key,info.key,32);
+  	int decryptedtext_len;
+	int rsize;
     while (running) {
-        char line[5000] = "";
-
-        recv(serversocket, line, 5000, 0);
+        unsigned char line[5000] = "";
+	unsigned char decryptedtext[5000] = "";
+	recv(serversocket, iv2, 64, 0);
+        rsize = recv(serversocket, line, 5000, 0);
+	std::cout << "TRY TO DECRYPT" << line << "\n";
+	decryptedtext_len = decrypt(line, rsize , key, iv2, decryptedtext);
+		decryptedtext[decryptedtext_len] = '\0';
         if (running) {
-            //std::cout << "\nGot from server: " << line << "\n";
+            std::cout << "\nGot from server: " << decryptedtext << "\n";
         }
 
-        if(strcmp(line, "Quit") == 0) {
+        if(strcmp((char*)decryptedtext, "Quit") == 0) {
             std::cout << "Exiting Client\n";
             running = false;
             send(serversocket, "Quit", 4, 0);
@@ -78,9 +92,6 @@ int main(int arc, char** argv) {
 
     int first = 1;
 
-    pthread_t child;
-    pthread_create(&child,NULL,handleserver,&sockfd);
-    pthread_detach(child);
 
 	std::cout << "Commands\n";
 	std::cout << "Send a Message to another client: \"Clientname\" \"Message\"\n";
@@ -104,12 +115,20 @@ int main(int arc, char** argv) {
 	pubkey = PEM_read_PUBKEY(pubf,NULL,NULL,NULL);
 	//fclose(pubf);
 	unsigned char encrypted_key[256];
-	std::cout << "Decrypted Key: " << key << "\t" << sizeof(key) << "\n\n";
+	//std::cout << "Decrypted Key: " << key << "\t" << sizeof(key) << "\n\n";
 	int encryptedkey_len = rsa_encrypt(key, 32, pubkey, encrypted_key);
   	//ciphertext_len = encrypt (plaintext, strlen ((char *)plaintext), key, iv,
     //                        ciphertext);
-	std::cout << "Encrypted Key: " << encrypted_key << "\t" << encryptedkey_len << "\n";
+	//std::cout << "Encrypted Key: " << encrypted_key << "\t" << encryptedkey_len << "\n";
 	send(sockfd, encrypted_key, encryptedkey_len, 0);
+
+	struct params pass;
+	pass.sockfd=sockfd;
+	memcpy(pass.key,key,32);
+
+	pthread_t child;
+    	pthread_create(&child,NULL,handleserver,&pass);
+	pthread_detach(child);
 	
 	unsigned char ciphertext[5000];
 	unsigned char decryptedtext[5000];
@@ -121,7 +140,7 @@ int main(int arc, char** argv) {
 	send(sockfd, iv , 64, 0);
 	
         unsigned char line[5000];
-	std::cout << "IV: " << iv << "\t" << sizeof(iv) << "\n";
+	//std::cout << "IV: " << iv << "\t" << sizeof(iv) << "\n";
         
         std::cout << "Enter a Message: ";
 
@@ -131,13 +150,13 @@ int main(int arc, char** argv) {
         }
         std::cin.getline((char*)line,5000);
 	
-	std::cout << "message recieved: " << line << "\t" << strlen ((char *)line) << "\n";
+	//std::cout << "message recieved: " << line << "\t" << strlen ((char *)line) << "\n";
 	
 		//std::cout << "line is " << line << "\n";
 		ciphertext_len = encrypt (line, strlen ((char *)line), key, iv,
                             ciphertext);
 	
-	std::cout << "message sent: " << ciphertext << "\t" << ciphertext_len << "\n";
+	//std::cout << "message sent: " << ciphertext << "\t" << ciphertext_len << "\n";
 
         send(sockfd, ciphertext, ciphertext_len, 0);
 		//std::cout << "cipher text is " << ciphertext << " cipher text size is " << ciphertext_len  << "----" << strlen ((char *)line) << "\n";
