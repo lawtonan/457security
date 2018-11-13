@@ -34,7 +34,7 @@ void* handleserver(void* arg) {
 
         recv(serversocket, line, 5000, 0);
         if (running) {
-            std::cout << "\nGot from server: " << line << "\n";
+            //std::cout << "\nGot from server: " << line << "\n";
         }
 
         if(strcmp(line, "Quit") == 0) {
@@ -102,12 +102,13 @@ int main(int arc, char** argv) {
 
 	FILE* pubf = fopen(pubfilename,"rb");
 	pubkey = PEM_read_PUBKEY(pubf,NULL,NULL,NULL);
+	fclose(pubf);
 	unsigned char encrypted_key[256];
-
+	std::cout << "Decrypted Key: " << key << "\n";
 	int encryptedkey_len = rsa_encrypt(key, 32, pubkey, encrypted_key);
   	//ciphertext_len = encrypt (plaintext, strlen ((char *)plaintext), key, iv,
     //                        ciphertext);
-
+	
 	send(sockfd, encrypted_key, encryptedkey_len, 0);
 	
 	unsigned char ciphertext[5000];
@@ -116,11 +117,11 @@ int main(int arc, char** argv) {
 
 		RAND_bytes(key,32);
   		RAND_bytes(iv,16);
-		
-
-
+	
+	send(sockfd, iv , 64, 0);
+	
         unsigned char line[5000];
-
+	//std::cout << "IV: " << iv << "\t" << sizeof(iv) << "\n";
         
         std::cout << "Enter a Message: ";
 
@@ -129,11 +130,15 @@ int main(int arc, char** argv) {
             first--;
         }
         std::cin.getline((char*)line,5000);
+
+	std::cout << "message recieved: " << line << "\t" << strlen ((char *)line) << "\n";
+
 		//std::cout << "line is " << line << "\n";
 		ciphertext_len = encrypt (line, strlen ((char *)line), key, iv,
                             ciphertext);
-
-        send(sockfd, ciphertext, ciphertext_len, 0);
+	
+	std::cout << "message sent: " << ciphertext << "\t" << ciphertext_len << "\n";
+        send(sockfd, ciphertext, ciphertext_len * 4, 0);
 		//std::cout << "cipher text is " << ciphertext << " cipher text size is " << ciphertext_len  << "----" << strlen ((char *)line) << "\n";
 		//exit(1);
         if(strcmp((char*)line, "Quit") == 0) {

@@ -45,10 +45,10 @@ void* handleclient(void* arg) {
 	
 	FILE* privf = fopen(privfilename,"rb");
   	privkey = PEM_read_PrivateKey(privf,NULL,NULL,NULL);
-	
+	fclose(privf);
 	unsigned char decrypted_key[32];
   	int decryptedkey_len = rsa_decrypt(encrypted_key, 256, privkey, decrypted_key); 
-  
+  	std::cout << "Decrypted Key: " << decrypted_key << "\n";
   	//decryptedtext_len = decrypt(ciphertext, ciphertext_len, decrypted_key, iv,
 	//		      	decryptedtext);
   	//decryptedtext[decryptedtext_len] = '\0';
@@ -59,17 +59,23 @@ void* handleclient(void* arg) {
   	std::cout << "GOTO WHILE\n";
   	int rsize;
   	
-  	RAND_bytes(key,32);
-  	RAND_bytes(iv,16);
+  	//RAND_bytes(key,32);
+  	//RAND_bytes(iv,16);
   	
     while (1) {
         unsigned char line[5000] = "";
-        rsize = recv(clientsocket, line, 5000, 0);
-        
-        decryptedtext_len = decrypt(line, (rsize) , decrypted_key, iv,
+	recv(clientsocket, iv, 64, 0);
+       
+	//std::cout << "IV: " << iv << "\t" << sizeof(iv) << "\n";
+	rsize = recv(clientsocket, line, 5000, 0);
+
+	std::cout << "message recieved: " << line << "\t" << rsize << "\n";
+        std::cout << "GOT TO DECRYPT\n";
+        decryptedtext_len = decrypt(line, rsize , decrypted_key, iv,
 			      decryptedtext);
+	std::cout << "GOT PAST DECRYPT\n";
   		decryptedtext[decryptedtext_len] = '\0';
-        
+        	
 		std::cout << "Got from client: " << decryptedtext << "\n";
 
         if(strcmp((char*)decryptedtext, "List") == 0) {
