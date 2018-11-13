@@ -27,30 +27,30 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
 	    unsigned char *iv, unsigned char *plaintext);
 
 
-std::map<int, int> clientList;
-std::map<int, int> clientKeyList;
+std::map<int, std::pair<int,unsigned char*>> clientList;
 
 void* handleclient(void* arg) {
 	
 	int clientsocket = *(int*)arg;
-	std::map<int,int>::iterator it;
+	std::map<int, std::pair<int,unsigned char*>>::iterator it;
 	
 	char pubfilename[11] = "RSApub.pem";
   	char privfilename[12] = "RSApriv.pem";
   	unsigned char key[32];
   	unsigned char iv[16];
+	unsigned char iv2[16];
 	unsigned char encrypted_key[256];
 	int testr; 
 	testr = recv(clientsocket, encrypted_key, 256, 0);
-	std::cout << "Encrypted Key: " << encrypted_key << "\t" << testr << "\n";
+	//std::cout << "Encrypted Key: " << encrypted_key << "\t" << testr << "\n";
 	EVP_PKEY *privkey;
 	
 	FILE* privf = fopen(privfilename,"rb");
   	privkey = PEM_read_PrivateKey(privf,NULL,NULL,NULL);
-	//fclose(privf);
+	fclose(privf);
 	unsigned char decrypted_key[32];
   	int decryptedkey_len = rsa_decrypt(encrypted_key, testr, privkey, decrypted_key); 
-  	std::cout << "Decrypted Key: " << decrypted_key << "\t" << decryptedkey_len << "\n";
+  	//std::cout << "Decrypted Key: " << decrypted_key << "\t" << decryptedkey_len << "\n";
   	//decryptedtext_len = decrypt(ciphertext, ciphertext_len, decrypted_key, iv,
 	//		      	decryptedtext);
   	//decryptedtext[decryptedtext_len] = '\0';
@@ -58,27 +58,33 @@ void* handleclient(void* arg) {
   	unsigned char decryptedtext[5000];
   	int decryptedtext_len;
   	
-  	std::cout << "GOTO WHILE\n";
+  	//std::cout << "GOTO WHILE\n";
   	int rsize;
   	
+	for (it = clientList.begin(); it != clientList.end(); ++it) {
+          	if(it->second.first != clientsocket){
+			it->second.second = decrypted_key;
+		}
+	}
   	//RAND_bytes(key,32);
   	//RAND_bytes(iv,16);
   	
     while (1) {
+	RAND_bytes(iv2,16);
         unsigned char line[5000] = "";
 	recv(clientsocket, iv, 64, 0);
        
-	std::cout << "IV: " << iv << "\t" << sizeof(iv) << "\n";
+	//std::cout << "IV: " << iv << "\t" << sizeof(iv) << "\n";
 	rsize = recv(clientsocket, line, 5000, 0);
 
-	std::cout << "message recieved: " << line << "\t" << rsize << "\n";
-        std::cout << "\n\nGOT TO DECRYPT\n";
+	//std::cout << "message recieved: " << line << "\t" << rsize << "\n";
+        //std::cout << "\n\nGOT TO DECRYPT\n";
 
 
 
         decryptedtext_len = decrypt(line, rsize , decrypted_key, iv,
 			      decryptedtext);
-	std::cout << "GOT PAST DECRYPT\n";
+	//std::cout << "GOT PAST DECRYPT\n";
   		decryptedtext[decryptedtext_len] = '\0';
         	
 		std::cout << "Got from client: " << decryptedtext << "\n";
@@ -94,8 +100,8 @@ void* handleclient(void* arg) {
         }
         else if (decryptedtext[0] == '*') {
 		  for (it = clientList.begin(); it != clientList.end(); ++it) {
-          	if(it->second != clientsocket)
-				send(it->second,decryptedtext + 2, decryptedtext_len-1, 0);
+          	if(it->second.first != clientsocket)
+				send(it->second.first,decryptedtext + 2, decryptedtext_len-1, 0);
           }
         }
 		else if (decryptedtext[0] == 'K') {
@@ -104,12 +110,12 @@ void* handleclient(void* arg) {
 			recv(clientsocket, message, 5000, 0);
 			if (strcmp(message, "123456") == 0) {
 				int kill = (int)decryptedtext[1] - 48;
-				send(clientList[kill], "Quit", 4, 0);
+				send(clientList[kill].first, "Quit", 4, 0);
 			}
 		}
 		else if (strcmp((char*)decryptedtext, "Quit") == 0) {
 			for (it = clientList.begin(); it != clientList.end(); ++it) {
-				if(it->second == clientsocket){
+				if(it->second.first == clientsocket){
 					clientList.erase(it);
 				}
 			}
@@ -120,7 +126,7 @@ void* handleclient(void* arg) {
         else {
 			int sendto = (int)decryptedtext[0] - 48;
           	if (clientList.count(sendto)) {
-           		send(clientList[sendto],decryptedtext + 2, decryptedtext_len-1, 0);
+           		send(clientList[sendto].first,decryptedtext + 2, decryptedtext_len-1, 0);
           	}
           	else
           	{
@@ -170,7 +176,7 @@ int main(int arc, char** argv) {
         pthread_create(&child,NULL,handleclient,&clientsocket);
         pthread_detach(child);
 	
-		clientList[num_clients] = clientsocket;
+		clientList[num_clients].first = clientsocket;
         num_clients++;
     }
     EVP_cleanup();
